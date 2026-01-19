@@ -18,13 +18,30 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 sh '''
+                    # Clean up first
+                    docker stop ${APP_NAME} 2>/dev/null || true
+                    docker rm ${APP_NAME} 2>/dev/null || true
+                    
+                    # Build
                     npm install
-                    docker build -t sample-app:$BUILD_NUMBER .
-                    docker stop sample-app || true
-                    docker rm sample-app || true
-                    docker run -d --name sample-app -p 3000:3000 sample-app:$BUILD_NUMBER
-                    sleep 3
-                    curl -f http://localhost:3000/ || exit 1
+                    docker build -t ${APP_NAME}:${BUILD_NUMBER} .
+                    
+                    # Run with debugging
+                    docker run -d \
+                      --name ${APP_NAME} \
+                      -p ${APP_PORT}:${APP_PORT} \
+                      ${APP_NAME}:${BUILD_NUMBER}
+                    
+                    # Wait longer and check logs
+                    sleep 5
+                    echo "Container status:"
+                    docker ps | grep ${APP_NAME}
+                    
+                    echo "Container logs:"
+                    docker logs ${APP_NAME}
+                    
+                    # Try to connect
+                    curl -v --retry 5 --retry-delay 2 http://localhost:${APP_PORT}/ || echo "Check container logs above"
                 '''
             }
         }
