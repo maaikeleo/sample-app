@@ -4,9 +4,10 @@ const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
   res.json({
-    message: 'Hello from Sample App!',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    message: 'Hello from Jenkins CI/CD Pipeline!',
+    status: 'success',
+    build: process.env.BUILD_NUMBER || 'local',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -14,10 +15,6 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'sample-app' });
 });
 
-module.exports = app;
-
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
