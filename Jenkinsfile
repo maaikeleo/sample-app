@@ -6,6 +6,8 @@ pipeline {
     environment {
         APP_NAME = 'sample-app'
         APP_PORT = '3000'
+        SONAR_HOST_URL = 'http://localhost:9000'
+        SONAR_TOKEN = credentials('sonarqube-token')
     }
     stages {
         stage('Checkout') {
@@ -15,33 +17,39 @@ pipeline {
                      credentialsId: 'github-token'
             }
         }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        # Run SonarQube analysis
+                        sonar-scanner \
+                          -Dsonar.projectKey=${APP_NAME} \
+                          -Dsonar.projectName="${APP_NAME}" \
+                          -Dsonar.projectVersion=${BUILD_NUMBER} \
+                          -Dsonar.sources=. \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.login=${SONAR_TOKEN}
+                    '''
+                }
+            }
+        }
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
         stage('Build & Deploy') {
             steps {
                 sh '''
-                    # Clean up first
-                    docker stop ${APP_NAME} 2>/dev/null || true
-                    docker rm ${APP_NAME} 2>/dev/null || true
-                    
-                    # Build
                     npm install
                     docker build -t ${APP_NAME}:${BUILD_NUMBER} .
-                    
-                    # Run with debugging
-                    docker run -d \
-                      --name ${APP_NAME} \
-                      -p ${APP_PORT}:${APP_PORT} \
-                      ${APP_NAME}:${BUILD_NUMBER}
-                    
-                    # Wait longer and check logs
-                    sleep 5
-                    echo "Container status:"
-                    docker ps | grep ${APP_NAME}
-                    
-                    echo "Container logs:"
-                    docker logs ${APP_NAME}
-                    
-                    # Try to connect
-                    curl -v --retry 5 --retry-delay 2 http://localhost:${APP_PORT}/ || echo "Check container logs above"
+                    docker stop ${APP_NAME} 2>/dev/null || true
+                    docker rm ${APP_NAME} 2>/dev/null || true
+                    docker run -d --name ${APP_NAME} -p ${APP_PORT}:${APP_PORT} ${APP_NAME}:${BUILD_NUMBER}
+                    sleep 3
+                    curl -f http://localhost:${APP_PORT}/ || exit 1
                 '''
             }
         }
