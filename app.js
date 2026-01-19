@@ -1,20 +1,12 @@
 const express = require('express');
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Hello from Jenkins CI/CD Pipeline!',
-    status: 'success',
-    build: process.env.BUILD_NUMBER || 'local',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ message: 'Hello from CI/CD!', status: 'OK' });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', service: 'sample-app' });
+  res.json({ status: 'healthy' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+module.exports = app;
